@@ -163,40 +163,74 @@ await page.click('button:has-text("Next")');
 
 ---
 
-## 步骤 5: 手机验证（⚠️ 需手动）
+## 步骤 5: 验证
 
-- **URL**: `https://accounts.google.com/lifecycle/steps/signup/mophoneverification/initial`
-- **页面标题**: "Verify some info before creating an account"
+验证方式取决于注册时使用的设备模式：
 
-### 说明
+### 方式 A: SMS 短信验证（移动模式 — 推荐）
 
-Google 显示一个 QR 码，要求用手机扫描验证。
+- **URL**: `https://accounts.google.com/devicephoneverification/consent`
+- **页面标题**: "Verify your phone number"
+- **触发条件**: 使用移动设备（或 Playwright `devices["Pixel 7"]` 模拟）注册
 
-> "Google needs to verify some info about your device or phone number before you can continue. This helps keep you and others safe online by preventing abuse from computer programs or bots."
+#### 页面内容
 
-### 验证方式
+> "Google needs to verify your device or phone number for security reasons."
+> "Your phone will open an SMS message with a code you need to send to verify your phone."
 
-1. **QR 码扫描**（默认方式）
-   - 打开手机相机 App
-   - 扫描屏幕上的 QR 码
-   - 点击链接并在手机上完成验证
-   - 完成后回到电脑继续
+- 显示 **"Send SMS"** 按钮
+- 点击后需要接收 SMS 验证码
+- 可使用虚拟号码服务（sms-activate.org、5sim.net 等）接收验证码
 
-### 重要注意
-
-- 此步骤 **无法自动化**，必须手动操作
-- QR 码不会将手机号与新账号关联
-- 验证完成后 URL 会自动跳转到下一步
-- 超时时间建议设置为 10 分钟
-
-### 脚本等待逻辑
+#### Playwright 选择器
 
 ```javascript
-// 等待验证完成 - URL 不再包含 mophoneverification 时继续
+// 等待 SMS 验证完成
 await page.waitForURL(
-  (url) => !url.pathname.includes('mophoneverification'),
+  (url) => !url.pathname.includes('phoneverification') &&
+           !url.pathname.includes('devicephoneverification'),
   { timeout: 600000 }
 );
+```
+
+### 方式 B: QR 码扫描验证（桌面模式）
+
+- **URL**: `https://accounts.google.com/lifecycle/steps/signup/mophoneverification/initial`
+  或 `https://accounts.google.com/lifecycle/steps/signup/crossflowverification/initial`
+- **页面标题**: "Verify some info before creating an account"
+- **触发条件**: 使用桌面浏览器注册
+
+#### 页面内容
+
+> "Google needs to verify some info about your device or phone number before you can continue."
+
+- 显示 QR 码图片
+- 需要手机扫描验证
+- 完成后 URL 自动跳转
+
+#### Playwright 选择器
+
+```javascript
+// 等待 QR 码验证完成
+await page.waitForURL(
+  (url) => !url.pathname.includes('mophoneverification') &&
+           !url.pathname.includes('crossflowverification'),
+  { timeout: 600000 }
+);
+```
+
+### 如何切换验证方式
+
+在 Playwright 中使用移动设备模拟即可获得 SMS 验证：
+
+```javascript
+import { chromium, devices } from 'playwright';
+
+const browser = await chromium.launch();
+const context = await browser.newContext({
+  ...devices['Pixel 7'],
+  locale: 'en-US',
+});
 ```
 
 ---
