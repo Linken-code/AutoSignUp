@@ -1,6 +1,6 @@
 ---
 name: google-account-registration
-description: Google 账号注册自动化流程。使用 Playwright 通过 CDP 连接 Chrome 浏览器，自动填写注册表单，在 QR 验证步骤暂停等待人工操作。
+description: Google 账号注册自动化流程。支持移动模式（SMS验证）和桌面模式（QR码验证）。使用 Playwright 自动填写注册表单。
 ---
 
 # Google 账号注册自动化
@@ -9,7 +9,18 @@ description: Google 账号注册自动化流程。使用 Playwright 通过 CDP �
 
 注册 URL: `https://accounts.google.com/signup`
 
-5 个步骤中有 4 个可以自动化:
+### 移动模式（推荐 — SMS 短信验证）
+
+5 个步骤中有 4 个可以自动化，第 5 步可用虚拟号码完成：
+1. 输入姓名 → 自动
+2. 填写生日性别 → 自动
+3. 创建邮箱地址 → 自动
+4. 设置密码 → 自动
+5. SMS 短信验证 → **需虚拟号码接收验证码**
+
+### 桌面模式（QR 码验证）
+
+5 个步骤中有 4 个可以自动化：
 1. 输入姓名 → 自动
 2. 填写生日性别 → 自动
 3. 创建邮箱地址 → 自动
@@ -46,20 +57,50 @@ All steps: button:has-text("Next")
 - `/signup/birthdaygender` → Step 2
 - `/signup/username` → Step 3
 - `/signup/password` → Step 4
-- `/mophoneverification/` → Step 5 (验证)
+- `/devicephoneverification/` → Step 5 (SMS 验证 — 移动模式)
+- `/mophoneverification/` → Step 5 (QR 验证 — 桌面模式)
+- `/crossflowverification/` → Step 5 (QR 验证 — YouTube 路径)
 
 ## 运行方式
 
+### Node.js (推荐)
+
 ```bash
-python google_register.py \
+# 移动模式（默认，使用 SMS 验证）
+npm run signup
+
+# 桌面模式
+MOBILE=false npm run signup
+
+# 无界面模式
+HEADLESS=true npm run signup
+```
+
+### Python (CDP)
+
+```bash
+python scripts/google_register.py \
   --first-name "Test" \
   --last-name "User" \
   --email "myemail123" \
   --password "StrongP@ss1!"
 ```
 
+## 移动模式配置
+
+```javascript
+import { chromium, devices } from 'playwright';
+const browser = await chromium.launch();
+const context = await browser.newContext({
+  ...devices['Pixel 7'],
+  locale: 'en-US',
+});
+```
+
 ## 注意
 
-- Chrome 需要在 `localhost:29229` 暴露 CDP 端口
-- QR 验证步骤脚本会暂停最多 5 分钟等待
-- 如果邮箱名被占用，需要手动处理错误
+- 移动模式使用 `devices["Pixel 7"]` 模拟，获得 SMS 验证
+- 桌面模式需要 QR 码扫描（需物理手机）
+- 如果邮箱名被占用，需要手动处理
+- Google 可能根据 IP 信誉改变验证要求
+- 建议匹配浏览器语言和 IP 地区
