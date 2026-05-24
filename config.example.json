@@ -1,0 +1,12 @@
+{
+  "firstName": "YourFirstName",
+  "lastName": "",
+  "birthday": {
+    "month": "January",
+    "day": "15",
+    "year": "1990"
+  },
+  "gender": "Rather not say",
+  "username": "your.desired.username",
+  "password": "YourStr0ng!Password#2026"
+}

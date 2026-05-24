@@ -6,3 +6,7 @@ dist/
 build/
 .vscode/
 .idea/
+node_modules/
+config.json
+*.log
+screenshots/
