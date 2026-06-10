@@ -37,8 +37,9 @@ function loadConfig() {
 // 工具函数
 // ---------------------------------------------------------------------------
 
-async function waitForNavigation(page, urlFragment, timeout = 30000) {
-  await page.waitForURL(`**/${urlFragment}**`, { timeout });
+async function waitForSelector(page, selector, timeout = 30000) {
+  await page.waitForTimeout(1000);
+  await page.locator(selector).first().waitFor({ state: "visible", timeout });
 }
 
 async function clickDropdownOption(page, dropdownSelector, optionText) {
@@ -64,7 +65,7 @@ function log(step, message) {
  */
 async function stepName(page, config) {
   log(1, "输入姓名...");
-  await waitForNavigation(page, "signup/name");
+  await waitForSelector(page, 'input[name="firstName"]');
 
   await page.fill('input[name="firstName"]', config.firstName);
   if (config.lastName) {
@@ -81,7 +82,7 @@ async function stepName(page, config) {
  */
 async function stepBirthdayGender(page, config) {
   log(2, "填写生日和性别...");
-  await waitForNavigation(page, "signup/birthdaygender");
+  await waitForSelector(page, 'input[name="day"]');
 
   // 选择月份
   await clickDropdownOption(
@@ -95,7 +96,7 @@ async function stepBirthdayGender(page, config) {
   await page.fill('input[name="year"]', config.birthday.year);
 
   // 选择性别
-  const genderDropdowns = page.locator('div[aria-expanded="false"]');
+  const genderDropdowns = page.locator('div:has-text("Gender")[aria-expanded="false"]');
   const genderDropdown = genderDropdowns.last();
   await genderDropdown.click();
   await page.waitForTimeout(500);
@@ -112,7 +113,7 @@ async function stepBirthdayGender(page, config) {
  */
 async function stepUsername(page, config) {
   log(3, "设置用户名...");
-  await waitForNavigation(page, "signup/username");
+  await waitForSelector(page, 'input[name="Username"]');
 
   await page.fill('input[name="Username"]', config.username);
   await page.click('button:has-text("Next")');
@@ -125,7 +126,7 @@ async function stepUsername(page, config) {
  */
 async function stepPassword(page, config) {
   log(4, "设置密码...");
-  await waitForNavigation(page, "signup/password");
+  await waitForSelector(page, 'input[name="Passwd"]');
 
   await page.fill('input[name="Passwd"]', config.password);
   await page.fill('input[name="PasswdAgain"]', config.password);
@@ -158,12 +159,8 @@ async function stepVerification(page) {
     console.log("");
     console.log("等待验证完成...");
 
-    await page.waitForURL(
-      (url) =>
-        !url.pathname.includes("phoneverification") &&
-        !url.pathname.includes("devicephoneverification"),
-      { timeout: 600000 }
-    );
+    await page.waitForTimeout(1000);
+    await page.locator('button:has-text("Skip"), button:has-text("I agree")').first().waitFor({ state: "visible", timeout: 600000 });
     log(5, "SMS 验证已完成！");
   } else if (currentUrl.includes("mophoneverification") || currentUrl.includes("crossflowverification")) {
     // 桌面模式 — QR 码验证
@@ -178,12 +175,8 @@ async function stepVerification(page) {
     console.log("提示：使用 MOBILE=true（默认）模式可获得 SMS 验证而非 QR 码");
     console.log("");
 
-    await page.waitForURL(
-      (url) =>
-        !url.pathname.includes("mophoneverification") &&
-        !url.pathname.includes("crossflowverification"),
-      { timeout: 600000 }
-    );
+    await page.waitForTimeout(1000);
+    await page.locator('button:has-text("Skip"), button:has-text("I agree")').first().waitFor({ state: "visible", timeout: 600000 });
     log(5, "QR 码验证已完成！");
   } else {
     log(5, "未检测到已知验证页面，继续...");
@@ -248,14 +241,14 @@ async function main() {
 
   const contextOptions = useMobile
     ? {
-        ...devices["Pixel 7"],
-        locale: "en-US",
-      }
+      ...devices["Pixel 7"],
+      locale: "en-US",
+    }
     : {
-        locale: "en-US",
-        userAgent:
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
-      };
+      locale: "en-US",
+      userAgent:
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+    };
 
   const context = await browser.newContext(contextOptions);
   const page = await context.newPage();
@@ -264,6 +257,7 @@ async function main() {
     log(0, "打开 Google 注册页面...");
     await page.goto("https://accounts.google.com/signup", {
       waitUntil: "networkidle",
+      timeout: 600000,
     });
 
     await stepName(page, config);
@@ -272,7 +266,7 @@ async function main() {
     await stepPassword(page, config);
 
     // 等待页面跳转到验证步骤
-    await page.waitForTimeout(2000);
+    await page.waitForTimeout(10000);
     const currentUrl = page.url();
     if (
       currentUrl.includes("phoneverification") ||
@@ -280,6 +274,7 @@ async function main() {
       currentUrl.includes("crossflowverification") ||
       currentUrl.includes("devicephoneverification")
     ) {
+      await page.waitForTimeout(5000);
       await stepVerification(page);
     }
 
@@ -298,7 +293,7 @@ async function main() {
     const screenshotDir = resolve(PROJECT_ROOT, "screenshots");
     mkdirSync(screenshotDir, { recursive: true });
     const screenshotPath = resolve(screenshotDir, "error.png");
-    await page.screenshot({ path: screenshotPath, fullPage: true }).catch(() => {});
+    await page.screenshot({ path: screenshotPath, fullPage: true }).catch(() => { });
     console.error(`错误截图已保存: ${screenshotPath}`);
   } finally {
     await browser.close();
